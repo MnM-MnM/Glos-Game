@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Glos-Game – Auto-översättning (sv → en/fr)</title>
+  <style>
+    :root { --bg:#f8fafc; --card:#fff; --border:#e2e8f0; --text:#0f172a; --muted:#64748b; --accent:#3b82f6; --danger:#ef4444; }
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";background:var(--bg);color:var(--text)}
+    .container{max-width:1000px;margin:0 auto;padding:24px}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    h1{font-size:24px;margin:0}
+    .btn{border:1px solid var(--border);background:#fff;border-radius:8px;padding:8px 12px;cursor:pointer} .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)} .btn.danger{border-color:var(--danger);color:var(--danger)}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
+    .muted{color:var(--muted)} .right{text-align:right} .center{text-align:center}
+    input,select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:#fff}
+    .grid{display:grid;gap:12px} .grid-2{grid-template-columns:repeat(2,1fr)} .grid-3{grid-template-columns:repeat(3,1fr)}
+    table{width:100%;border-collapse:collapse} th,td{padding:8px;border-bottom:1px solid var(--border);text-align:left} th{font-weight:600;color:#0f172a}
+    .badge{font-size:12px;border:1px solid var(--border);border-radius:999px;padding:4px 8px;background:#fff;margin-right:6px}
+    .progress{height:8px;background:#e2e8f0;border-radius:999px;overflow:hidden;margin:8px 0} .progress>div{height:100%;background:#3b82f6;width:0%;transition:width .2s}
+    .row{display:grid;grid-template-columns:1fr auto 1fr auto;gap:8px;align-items:center}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📚 Glos-Game – Auto-översättning</h1>
+      <div style="display:flex;gap:8px">
+        <button id="startBtn" class="btn primary" title="Starta spelet">▶️ Starta</button>
+      </div>
+    </div>
+
+    <div class="card grid" style="gap:16px">
+      <div class="grid grid-2">
+        <div>
+          <div class="muted">Målspråk (träna till)</div>
+          <select id="targetLang">
+            <option value="en">Engelska</option>
+            <option value="fr">Franska</option>
+          </select>
+        </div>
+        <div>
+          <div class="muted">Auto-översättning via internet</div>
+          <select id="onlineMode">
+            <option value="on">På (MyMemory API)</option>
+            <option value="off">Av (endast inbyggd mini-ordbok)</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <div class="muted">Klistra in svenska ord – ett per rad</div>
+        <textarea id="svInput" rows="6" placeholder="äpple
+hund
+tack
+skola
+vacker"></textarea>
+        <div class="right" style="margin-top:8px">
+          <button id="translateBtn" class="btn">🌐 Generera översättningar</button>
+        </div>
+      </div>
+
+      <div id="progressWrap" style="display:none">
+        <div class="muted">Översätter… <span id="progText"></span></div>
+        <div class="progress"><div id="progBar"></div></div>
+      </div>
+
+      <div id="tableWrap" style="display:none">
+        <table>
+          <thead><tr><th>Svenska (källa)</th><th>Översättning</th><th style="width:120px">Åtgärder</th></tr></thead>
+        <tbody id="tblBody"></tbody>
+        </table>
+        <div class="muted">Tips: Du kan klicka i cellerna under “Översättning” för att korrigera (t.ex. lägga till alternativ separerade med kommatecken).</div>
+      </div>
+
+      <div class="right">
+        <button id="startBtn2" class="btn primary">▶️ Starta spelet</button>
+      </div>
+    </div>
+
+    <div id="game" class="card grid" style="gap:16px; margin-top:16px; display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <div>
+          <span class="badge" id="badgeDir">SV → EN</span>
+          <span class="badge">✔️ <span id="badgeCorrect">0</span> rätt</span>
+          <span class="badge">❌ <span id="badgeWrong">0</span> fel</span>
+          <span class="badge"><span id="badgeAcc">0</span>%</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button id="toggleSpeak" class="btn">🔊 Uppläsning: På</button>
+          <button id="toggleAuto" class="btn">⏩ AutoNext</button>
+          <button id="shuffleBtn" class="btn">🔀 Blanda</button>
+        </div>
+      </div>
+
+      <div class="progress"><div id="progressGame"></div></div>
+
+      <div class="center">
+        <div class="muted" id="promptTitle" style="text-transform:uppercase;letter-spacing:.08em"></div>
+        <div id="promptWord" style="font-size:32px;font-weight:700;margin-top:4px"></div>
+      </div>
+
+      <div class="row">
+        <input id="answerInput" placeholder="Skriv ditt svar…" />
+        <button id="speakBtn" class="btn">🔈 Läs upp</button>
+        <div style="display:flex;gap:8px">
+          <button id="checkBtn" class="btn primary">Kolla</button>
+        </div>
+      </div>
+
+      <div class="center muted">
+        <span>Flera korrekta svar möjliga: </span>
+        <code id="answerKey"></code>
+      </div>
+    </div>
+
+    <div class="muted" style="text-align:center;margin-top:16px">Allt i en fil. Online-översättning använder MyMemory (gratis, hastighetsbegränsad). Fungerar även utan internet via mini-ordbok.</div>
+  </div>
+
+  <script>
+    const $ = s => document.querySelector(s);
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const norm = s => (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/["'`’]/g,"").replace(/[-–—]/g,"-").replace(/[^a-zA-Z0-9\-åäöœæøßçñ ]/g," ").replace(/\s+/g," ").trim();
+    const splitAnswers = s => (s||"").split(/[;,/]| eller | or | ou /g).map(x => norm(x)).filter(Boolean);
+    const shuffle = a => { const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [b[i],b[j]]=[b[j],b[i]];} return b; };
+    const TTS_LOCALE = { sv:"sv-SE", en:"en-GB", fr:"fr-FR" };
+
+    // Fallback mini-ordbok
+    const MINI = {
+      "äpple": { en:"apple", fr:"pomme" },
+      "hund": { en:"dog", fr:"chien" },
+      "tack": { en:"thanks, thank you", fr:"merci" },
+      "skola": { en:"school", fr:"école" },
+      "vacker": { en:"beautiful, pretty", fr:"beau, belle, joli" },
+      "hus": { en:"house", fr:"maison" },
+      "bok": { en:"book", fr:"livre" },
+      "vatten": { en:"water", fr:"eau" },
+      "mat": { en:"food", fr:"nourriture" },
+      "lärare": { en:"teacher", fr:"professeur, enseignant" }
+    };
+
+    function speak(text, langCode) {
+      if (!("speechSynthesis" in window)) return;
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = TTS_LOCALE[langCode] || "en-US";
+      const voices = window.speechSynthesis.getVoices();
+      const match = voices.find(v => v.lang && v.lang.startsWith(u.lang));
+      if (match) u.voice = match;
+      window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+    }
+
+    async function translateMyMemory(text, target) {
+      const url = "https://api.mymemory.translated.net/get?q=" + encodeURIComponent(text) + "&langpair=sv|" + encodeURIComponent(target);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      const t = data?.responseData?.translatedText || "";
+      return t;
+    }
+
+    async function translateWords(words, target, online=true, delayMs=800) {
+      const out = [];
+      document.getElementById("progressWrap").style.display = "block";
+      for (let i=0;i<words.length;i++) {
+        const sv = words[i];
+        let tr = "";
+        if (online) {
+          try {
+            tr = await translateMyMemory(sv, target);
+            await sleep(delayMs);
+          } catch (e) {
+            tr = "";
+          }
+        }
+        if (!tr && MINI[sv]) tr = MINI[sv][target] || "";
+        out.push({ sv, tr });
+        const pct = Math.round(((i+1)/words.length)*100);
+        document.getElementById("progText").textContent = `${i+1}/${words.length} (${pct}%)`;
+        document.getElementById("progBar").style.width = pct + "%";
+      }
+      document.getElementById("progressWrap").style.display = "none";
+      return out;
+    }
+
+    function renderTable(pairs) {
+      const tb = document.getElementById("tblBody"); tb.innerHTML = "";
+      for (const row of pairs) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = \`
+          <td>\${row.sv}</td>
+          <td contenteditable="true" data-sv="\${row.sv}">\${row.tr}</td>
+          <td><button class="btn" data-speak="\${row.sv}">🔈 Sv</button> <button class="btn" data-swap="\${row.sv}">↕️ Byt</button></td>
+        \`;
+        tb.appendChild(tr);
+      }
+      document.getElementById("tableWrap").style.display = "block";
+    }
+
+    document.getElementById("translateBtn").onclick = async () => {
+      const target = document.getElementById("targetLang").value;
+      const online = document.getElementById("onlineMode").value === "on";
+      const lines = document.getElementById("svInput").value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      if (!lines.length) { alert("Skriv in svenska ord först."); return; }
+      const pairs = await translateWords(lines, target, online);
+      renderTable(pairs);
+    };
+
+    document.getElementById("tblBody").addEventListener("click", (e) => {
+      const t = e.target; if (!(t instanceof HTMLElement)) return;
+      const sv = t.dataset.speak || t.dataset.swap;
+      if (!sv) return;
+      if (t.dataset.speak) { speak(sv, "sv"); }
+      if (t.dataset.swap) {
+        const cell = t.closest("tr").querySelector("td[contenteditable]");
+        if (cell.textContent.trim() === "") cell.textContent = sv;
+      }
+    });
+
+    // Game
+    let list = [];
+    let toLang = "en";
+    let playing=false, queue=[], current=null, correct=0, wrong=0, speakPrompt=true, autoNext=true;
+
+    function buildListFromTable() {
+      toLang = document.getElementById("targetLang").value;
+      const rows = Array.from(document.getElementById("tblBody").querySelectorAll("tr"));
+      const items = [];
+      for (const r of rows) {
+        const sv = r.children[0].textContent.trim();
+        const tr = r.children[1].textContent.trim();
+        if (!sv || !tr) continue;
+        items.push({ from: sv, to: tr });
+      }
+      list = items;
+      return items.length;
+    }
+
+    function updateGameStats() {
+      document.getElementById("badgeDir").textContent = \`SV → \${toLang.toUpperCase()}\`;
+      document.getElementById("badgeCorrect").textContent = correct;
+      document.getElementById("badgeWrong").textContent = wrong;
+      const total = correct+wrong; const acc = total ? Math.round((correct/total)*100) : 0;
+      document.getElementById("badgeAcc").textContent = acc;
+      const pct = queue.length ? ((correct+wrong)/queue.length)*100 : 0;
+      document.getElementById("progressGame").style.width = pct + "%";
+    }
+
+    function startGame() {
+      if (!buildListFromTable()) { alert("Ingen data. Klicka 'Generera översättningar' först, eller fyll i tabellen."); return; }
+      queue = shuffle(list);
+      correct=0; wrong=0; playing=true;
+      current = queue[0];
+      document.getElementById("game").style.display = "grid";
+      document.getElementById("promptTitle").textContent = \`Översätt detta (SV → \${toLang.toUpperCase()})\`;
+      document.getElementById("promptWord").textContent = current.from;
+      document.getElementById("answerKey").textContent = current.to;
+      document.getElementById("answerInput").value = "";
+      updateGameStats();
+      if (speakPrompt) speak(current.from, "sv");
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+    }
+
+    function next(reshuffle=false) {
+      if (!playing) return;
+      if (reshuffle) queue = shuffle(queue);
+      queue.push(queue.shift());
+      current = queue[0];
+      document.getElementById("promptWord").textContent = current.from;
+      document.getElementById("answerKey").textContent = current.to;
+      document.getElementById("answerInput").value = "";
+      if (speakPrompt) speak(current.from, "sv");
+    }
+
+    function check() {
+      if (!current) return;
+      const val = document.getElementById("answerInput").value;
+      const ok = splitAnswers(current.to).some(a => a === norm(val));
+      if (ok) { correct++; speak("rätt!", "sv"); } else { wrong++; speak(current.to, toLang); }
+      updateGameStats();
+      if (autoNext) setTimeout(()=>next(false), 450);
+    }
+
+    document.getElementById("startBtn").onclick = startGame;
+    document.getElementById("startBtn2").onclick = startGame;
+    document.getElementById("shuffleBtn").onclick = ()=> next(true);
+    document.getElementById("toggleSpeak").onclick = (e)=>{ speakPrompt=!speakPrompt; e.target.textContent = speakPrompt ? "🔊 Uppläsning: På" : "🔇 Uppläsning: Av"; };
+    document.getElementById("toggleAuto").onclick = (e)=>{ autoNext=!autoNext; e.target.textContent = autoNext ? "⏩ AutoNext" : "⏭ Manuell"; };
+    document.getElementById("speakBtn").onclick = ()=> { if (current) speak(current.from, "sv"); };
+    document.getElementById("checkBtn").onclick = check;
+    document.getElementById("answerInput").addEventListener("keydown", e=>{ if (e.key === "Enter") check(); });
+  </script>
+</body>
+</html>
