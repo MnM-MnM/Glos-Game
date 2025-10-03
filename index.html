@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Glos-Game (Vanilla)</title>
+  <style>
+    :root { --bg:#f8fafc; --card:#fff; --border:#e2e8f0; --text:#0f172a; --muted:#64748b; --accent:#3b82f6; --danger:#ef4444; }
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";background:var(--bg);color:var(--text)}
+    .container{max-width:960px;margin:0 auto;padding:24px}
+    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    h1{font-size:24px;margin:0}
+    .tabs{display:grid;grid-template-columns:1fr 1fr;background:#e5e7eb;border-radius:12px;padding:4px;width:fit-content}
+    .tab-btn{border:0;background:transparent;padding:8px 16px;border-radius:8px;cursor:pointer} .tab-btn.active{background:#fff}
+    .btn{border:1px solid var(--border);background:#fff;border-radius:8px;padding:8px 12px;cursor:pointer} .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)} .btn.danger{border-color:var(--danger);color:var(--danger)}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
+    input,select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:#fff}
+    .grid{display:grid;gap:12px} .grid-3{grid-template-columns:repeat(3,1fr)}
+    .row{display:grid;grid-template-columns:1fr auto 1fr auto;gap:8px;align-items:center}
+    .center{text-align:center} .right{text-align:right} .muted{color:var(--muted)}
+    .badges{display:flex;gap:8px;flex-wrap:wrap} .badge{font-size:12px;border:1px solid var(--border);border-radius:999px;padding:4px 8px;background:#fff}
+    .progress{height:8px;background:#e2e8f0;border-radius:999px;overflow:hidden} .progress>div{height:100%;background:var(--accent);width:0%;transition:width .2s}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📚 Glos-Game</h1>
+      <div style="display:flex;gap:8px">
+        <button id="swapBtn" class="btn" title="Byt riktning">↔️ Byt riktning</button>
+        <button id="startBtn" class="btn primary">▶️ Starta</button>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button id="tabSetup" class="tab-btn active">Setup</button>
+      <button id="tabPlay" class="tab-btn">Spela</button>
+    </div>
+    <div style="height:8px"></div>
+
+    <div id="viewSetup" class="card grid" style="gap:16px">
+      <div class="grid grid-3">
+        <div>
+          <div class="muted">Från språk</div>
+          <select id="fromLang">
+            <option value="sv">Svenska</option>
+            <option value="en">Engelska</option>
+            <option value="fr">Franska</option>
+          </select>
+        </div>
+        <div class="center" style="display:flex;align-items:flex-end;justify-content:center">→</div>
+        <div>
+          <div class="muted">Till språk</div>
+          <select id="toLang">
+            <option value="en">Engelska</option>
+            <option value="sv">Svenska</option>
+            <option value="fr">Franska</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8;flex-wrap:wrap">
+        <button id="addRow" class="btn">➕ Lägg till rad</button>
+        <button id="loadExamples" class="btn">🔁 Exempel</button>
+        <button id="exportBtn" class="btn">⬇️ Exportera JSON</button>
+      </div>
+
+      <div id="rows" class="grid" style="gap:8px"></div>
+
+      <div class="grid grid-3">
+        <div>
+          <div class="muted">Importera JSON</div>
+          <textarea id="importText" rows="4" placeholder='{"fromLang":"sv","toLang":"en","entries":[{"from":"äpple","to":"apple"}]}'></textarea>
+          <div class="right" style="margin-top:8px">
+            <button id="importBtn" class="btn">⬆️ Importera</button>
+          </div>
+        </div>
+        <div class="grid" style="grid-column:span 2">
+          <div class="muted"><b>Tips:</b> Flera korrekta svar? Separera med kommatecken.</div>
+          <div class="right">
+            <button id="startBtn2" class="btn primary">▶️ Starta spelet</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="viewPlay" class="card grid" style="gap:16px; display:none">
+      <div id="playEmpty" class="center muted">Klicka <b>Starta</b> i sidhuvudet eller på Setup-sidan.</div>
+      <div id="playArea" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+          <div class="badges">
+            <div class="badge" id="badgeLang"></div>
+            <div class="badge">✔️ <span id="badgeCorrect">0</span> rätt</div>
+            <div class="badge">❌ <span id="badgeWrong">0</span> fel</div>
+            <div class="badge"><span id="badgeAcc">0</span>%</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button id="toggleSpeak" class="btn">🔊 Uppläsning: På</button>
+            <button id="toggleAuto" class="btn">⏩ AutoNext</button>
+            <button id="shuffleBtn" class="btn">🔀 Blanda</button>
+          </div>
+        </div>
+
+        <div class="progress"><div id="progressBar"></div></div>
+
+        <div class="center">
+          <div class="muted" id="promptTitle" style="text-transform:uppercase;letter-spacing:.08em"></div>
+          <div id="promptWord" style="font-size:32px;font-weight:700;margin-top:4px"></div>
+        </div>
+
+        <div class="row">
+          <input id="answerInput" placeholder="Skriv ditt svar…" />
+          <button id="speakBtn" class="btn">🔈 Läs upp</button>
+          <div style="display:flex;gap:8px">
+            <button id="checkBtn" class="btn primary">Kolla</button>
+          </div>
+        </div>
+
+        <div class="center muted">
+          <span>Flera korrekta svar möjliga: </span>
+          <code id="answerKey"></code>
+        </div>
+      </div>
+    </div>
+
+    <div class="muted" style="text-align:center;margin-top:16px">Zero‑dependency version (ingen service worker, inga externa script). Fungerar även bakom Netlify-lösenord.</div>
+  </div>
+
+  <script>
+    // ----- Data & helpers -----
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+    const uid = () => Math.random().toString(36).slice(2,9);
+    const EXAMPLES = [
+      { id: uid(), from: "äpple", to: "apple" },
+      { id: uid(), from: "hund", to: "dog" },
+      { id: uid(), from: "tack", to: "thanks, thank you" },
+      { id: uid(), from: "skola", to: "school" },
+      { id: uid(), from: "vacker", to: "beautiful, pretty" },
+    ];
+    const norm = s => (s||"").toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[\"'`’]/g,"").replace(/[-–—]/g,"-").replace(/[^a-zA-Z0-9\\-åäöæøœßçñ ]/g," ").replace(/\\s+/g," ").trim();
+    const splitAnswers = s => norm(s).split(/[;,/]| eller | or | ou /g).map(x=>x.trim()).filter(Boolean);
+    const shuffle = a => { const b = [...a]; for (let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [b[i],b[j]]=[b[j],b[i]];} return b; };
+    const localeForTTS = code => ({sv:"sv-SE",en:"en-GB",fr:"fr-FR"})[code] || "en-US";
+
+    function speak(text, langCode){
+      if (!("speechSynthesis" in window)) return;
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = localeForTTS(langCode);
+      const voices = window.speechSynthesis.getVoices();
+      const m = voices.find(v => v.lang && v.lang.startsWith(u.lang));
+      if (m) u.voice = m;
+      window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+    }
+
+    // ----- State -----
+    let fromLang = "sv";
+    let toLang = "en";
+    let entries = [...EXAMPLES];
+
+    let playing = false;
+    let queue = [];
+    let current = null;
+    let correct = 0, wrong = 0;
+    let speakPrompt = true;
+    let autoNext = true;
+
+    // ----- UI wiring -----
+    function renderRows(){
+      const rows = $("#rows"); rows.innerHTML = "";
+      for (const e of entries){
+        const wrap = document.createElement("div"); wrap.className = "row";
+        wrap.innerHTML = \`
+          <input data-id="\${e.id}" data-k="from" placeholder="Från…" value="\${e.from}">
+          <div class="center">→</div>
+          <input data-id="\${e.id}" data-k="to" placeholder="Till… (flera svar separera med , eller ;)" value="\${e.to}">
+          <button class="btn danger" data-del="\${e.id}">Ta bort</button>
+        \`;
+        rows.appendChild(wrap);
+      }
+    }
+
+    function updateStats(){
+      $("#badgeLang").textContent = fromLang.toUpperCase() + " → " + toLang.toUpperCase();
+      $("#badgeCorrect").textContent = correct;
+      $("#badgeWrong").textContent = wrong;
+      const total = correct + wrong; const acc = total ? Math.round((correct/total)*100) : 0;
+      $("#badgeAcc").textContent = acc;
+      const progress = queue.length ? ((correct+wrong)/queue.length)*100 : 0;
+      $("#progressBar").style.width = progress + "%";
+    }
+
+    function showPlayArea(show){
+      $("#playEmpty").style.display = show ? "none" : "block";
+      $("#playArea").style.display = show ? "block" : "none";
+    }
+
+    function showTab(name){
+      const isSetup = name === "setup";
+      $("#viewSetup").style.display = isSetup ? "block" : "none";
+      $("#viewPlay").style.display = isSetup ? "none" : "block";
+      $("#tabSetup").classList.toggle("active", isSetup);
+      $("#tabPlay").classList.toggle("active", !isSetup);
+    }
+
+    function startGame(){
+      if (!entries.length) return;
+      queue = shuffle(entries);
+      correct = 0; wrong = 0; playing = true;
+      current = queue[0];
+      $("#answerInput").value = "";
+      $("#promptTitle").textContent = \`Översätt detta (\${fromLang.toUpperCase()} → \${toLang.toUpperCase()})\`;
+      $("#promptWord").textContent = current.from;
+      $("#answerKey").textContent = current.to;
+      showPlayArea(true);
+      updateStats();
+      if (speakPrompt) speak(current.from, fromLang);
+      showTab("play");
+    }
+
+    function next(reshuffle=false){
+      if (!playing) return;
+      if (reshuffle) queue = shuffle(queue);
+      queue.push(queue.shift());
+      current = queue[0];
+      $("#answerInput").value = "";
+      $("#promptWord").textContent = current.from;
+      $("#answerKey").textContent = current.to;
+      if (speakPrompt) speak(current.from, fromLang);
+    }
+
+    function check(){
+      if (!current) return;
+      const val = $("#answerInput").value;
+      const ok = splitAnswers(current.to).some(a => a === norm(val));
+      if (ok){ correct++; speak("rätt!", "sv"); } else { wrong++; speak(current.to, toLang); }
+      updateStats();
+      if (autoNext) setTimeout(()=>next(false), 450);
+    }
+
+    // ----- Events -----
+    $("#tabSetup").onclick = () => showTab("setup");
+    $("#tabPlay").onclick = () => showTab("play");
+    $("#startBtn").onclick = startGame; $("#startBtn2").onclick = startGame;
+    $("#swapBtn").onclick = () => {
+      entries = entries.map(e => ({ id:e.id, from:e.to, to:e.from }));
+      const old = fromLang; fromLang = toLang; toLang = old;
+      $("#fromLang").value = fromLang; $("#toLang").value = toLang;
+      renderRows();
+    };
+    $("#fromLang").onchange = e => fromLang = e.target.value;
+    $("#toLang").onchange = e => toLang = e.target.value;
+    $("#addRow").onclick = () => { entries.push({ id: uid(), from:"", to:"" }); renderRows(); };
+    $("#loadExamples").onclick = () => { entries = [...EXAMPLES]; renderRows(); };
+    $("#exportBtn").onclick = () => {
+      const blob = new Blob([JSON.stringify({ fromLang, toLang, entries }, null, 2)], { type:"application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = `glosor_${fromLang}-${toLang}.json`; a.click(); URL.revokeObjectURL(url);
+    };
+    $("#importBtn").onclick = () => {
+      try{
+        const obj = JSON.parse($("#importText").value);
+        if (Array.isArray(obj.entries)){
+          entries = obj.entries.map(e => ({ id: uid(), from: e.from, to: e.to }));
+          if (obj.fromLang) { fromLang = obj.fromLang; $("#fromLang").value = fromLang; }
+          if (obj.toLang) { toLang = obj.toLang; $("#toLang").value = toLang; }
+          renderRows();
+        }
+      } catch(e){ alert("Ogiltig JSON"); }
+    };
+    $("#shuffleBtn").onclick = () => next(true);
+    $("#toggleSpeak").onclick = (e) => { speakPrompt = !speakPrompt; e.target.textContent = speakPrompt ? "🔊 Uppläsning: På" : "🔇 Uppläsning: Av"; };
+    $("#toggleAuto").onclick = (e) => { autoNext = !autoNext; e.target.textContent = autoNext ? "⏩ AutoNext" : "⏭ Manuell"; };
+    $("#speakBtn").onclick = () => { if (current) speak(current.from, fromLang); };
+    $("#checkBtn").onclick = check;
+    $("#answerInput").addEventListener("keydown", (e) => { if (e.key === "Enter") check(); });
+
+    $("#rows").addEventListener("input", (e) => {
+      const t = e.target; if (t.tagName !== "INPUT") return;
+      const id = t.dataset.id; const k = t.dataset.k; const v = t.value;
+      const idx = entries.findIndex(x => x.id === id);
+      if (idx >= 0) entries[idx] = { ...entries[idx], [k]: v };
+    });
+    $("#rows").addEventListener("click", (e) => {
+      const t = e.target; if (!(t instanceof HTMLElement)) return;
+      const id = t.dataset.del; if (!id) return;
+      entries = entries.filter(x => x.id !== id); renderRows();
+    });
+
+    // init
+    $("#fromLang").value = fromLang; $("#toLang").value = toLang;
+    renderRows(); updateStats(); showTab("setup");
+  </script>
+</body>
+</html>
